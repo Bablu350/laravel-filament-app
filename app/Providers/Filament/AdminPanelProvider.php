@@ -4,7 +4,6 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\AdminDashboard;
 use App\Filament\Pages\UserDashboard;
-use App\Http\Controllers\Auth\LoginController;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;

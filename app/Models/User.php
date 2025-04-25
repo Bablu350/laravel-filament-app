@@ -23,6 +23,18 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'gender',
+        'date_of_birth',
+        'aadhaar_number',
+        'aadhaar_card',
+        'pincode',
+        'address',
+        'bank_account_number',
+        'ifsc_code',
+        'pan_number',
+        'pan_card',
+        'voter_id_number',
+        'voter_id_card',
     ];
 
     /**
