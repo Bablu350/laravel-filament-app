@@ -89,6 +89,7 @@ class UserResource extends Resource
                             ->downloadable()
                             ->previewable(true)
                             ->openable()
+                            ->visibility('private')
                             ->maxSize(5120),
                         Forms\Components\TextInput::make('voter_id_number')
                             ->label('Voter ID Number')
@@ -105,6 +106,7 @@ class UserResource extends Resource
                             ->downloadable()
                             ->previewable(true)
                             ->openable()
+                            ->visibility('private')
                             ->maxSize(5120),
                     ])
                     ->columns(2),
