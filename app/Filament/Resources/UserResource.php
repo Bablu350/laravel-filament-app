@@ -4,11 +4,15 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Rules\ValidIfscCode;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Cache;
 
 class UserResource extends Resource
 {
@@ -58,6 +62,7 @@ class UserResource extends Resource
                             ->required()
                             ->maxLength(12)
                             ->minLength(12)
+                            ->numeric()
                             ->unique(
                                 table: User::class,
                                 column: 'aadhaar_number',
@@ -121,18 +126,82 @@ class UserResource extends Resource
                             ->maxLength(500),
                     ])
                     ->columns(2),
-                Forms\Components\Section::make('Bank Information')
+                    Forms\Components\Section::make('Bank Information')
                     ->schema([
                         Forms\Components\TextInput::make('bank_account_number')
                             ->label('Bank Account Number')
                             ->required()
+                            ->numeric()
                             ->maxLength(20),
                         Forms\Components\TextInput::make('ifsc_code')
                             ->label('IFSC Code')
                             ->required()
                             ->maxLength(11)
-                            ->minLength(11),
+                            ->minLength(11)
+                            ->rule(new ValidIfscCode())
+                            ->reactive()
+                            ->debounce(500)
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (empty($state)) {
+                                    $set('bank_details_temp', null);
+                                    $set('bank_details', null); // Reset bank_details
+                                    return;
+                                }
+                                $cacheKey = 'ifsc_' . $state;
+                                $bankDetails = Cache::get($cacheKey);
+                                if (!$bankDetails) {
+                                    try {
+                                        $response = Http::timeout(5)->get('https://ifsc.razorpay.com/' . $state);
+                                        if ($response->successful()) {
+                                            $data = $response->json();
+                                            $bankDetails = [
+                                                'bank' => $data['BANK'],
+                                                'branch' => $data['BRANCH'],
+                                                'city' => $data['CITY'],
+                                            ];
+                                            Cache::put($cacheKey, $bankDetails, now()->addHours(24));
+                                        } else {
+                                            $bankDetails = ['error' => 'Invalid IFSC code'];
+                                            throw ValidationException::withMessages([
+                                                'ifsc_code' => 'The provided IFSC code is invalid.',
+                                            ]);
+                                        }
+                                    } catch (\Exception $e) {
+                                        $bankDetails = ['error' => 'Invalid IFSC code'];
+                                        throw ValidationException::withMessages([
+                                            'ifsc_code' => 'The provided IFSC code is invalid.',
+                                        ]);
+                                    }
+                                }
+                
+                                $set('bank_details_temp', $bankDetails);
+                                $set('bank_details', !isset($bankDetails['error']) ? $bankDetails : null); // Set bank_details
+                            }),
+                        Forms\Components\Hidden::make('bank_details'), // Hidden field to store bank_details
+                        Forms\Components\Placeholder::make('bank_details_display')
+                            ->label('Bank Details')
+                            ->content(function ($get, $record) {
+                                $tempDetails = $get('bank_details_temp');
+                                $storedDetails = $record?->bank_details;
+                                if ($get('ifsc_code') && !$tempDetails && !$storedDetails) {
+                                    return 'Fetching bank details...';
+                                }
+                                if ($tempDetails && !isset($tempDetails['error'])) {
+                                    return "{$tempDetails['bank']} - {$tempDetails['branch']} ({$tempDetails['city']})";
+                                }
+                
+                                if ($tempDetails && isset($tempDetails['error'])) {
+                                    return $tempDetails['error'];
+                                }
+                
+                                if ($storedDetails) {
+                                    return "{$storedDetails['bank']} - {$storedDetails['branch']} ({$storedDetails['city']})";
+                                }
+                
+                                return 'Enter a valid IFSC code to see bank details';
+                            })
                     ])
+                    ->columns(2)
             ]);
     }
 

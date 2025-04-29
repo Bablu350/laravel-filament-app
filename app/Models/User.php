@@ -33,6 +33,7 @@ class User extends Authenticatable implements FilamentUser
         'address',
         'bank_account_number',
         'ifsc_code',
+        'bank_details',
         'pan_number',
         'pan_card',
         'voter_id_number',
@@ -59,6 +60,7 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'bank_details' => 'array',
         ];
     }
 

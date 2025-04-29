@@ -16,4 +16,12 @@ class EditUser extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Ensure bank_details is only saved if valid
+        if (isset($data['bank_details']) && isset($data['bank_details']['error'])) {
+            unset($data['bank_details']);
+        }
+        return $data;
+    }
 }
