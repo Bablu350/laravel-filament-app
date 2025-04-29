@@ -86,6 +86,8 @@ class UserResource extends Resource
                             ->minLength(10)
                             ->rule(new ValidPanNumber())
                             ->reactive()
+                            ->lazy()
+                            ->debounce(500)
                             ->extraInputAttributes([
                                 'style' => 'text-transform: uppercase;',
                                 'oninput' => 'this.value = this.value.toUpperCase();',
@@ -160,6 +162,7 @@ class UserResource extends Resource
                             ->rule(new ValidIfscCode())
                             ->reactive()
                             ->debounce(500)
+                            ->lazy()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if (empty($state)) {
                                     $set('bank_details_temp', null);

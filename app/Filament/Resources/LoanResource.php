@@ -43,6 +43,7 @@ class LoanResource extends Resource
                             ->label('Loan Amount')
                             ->required()
                             ->numeric()
+                            ->disabled(fn($livewire) => $livewire instanceof Pages\EditLoan)
                             ->minValue(1000)
                             ->maxValue(10000000)
                             ->prefix('₹')
@@ -51,6 +52,7 @@ class LoanResource extends Resource
                                 'oninput' => "this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1')",
                             ])
                             ->reactive()
+                            ->debounce(500)
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $loanAge = $get('loan_age');
                                 $interestRate = $get('interest_rate');
@@ -58,7 +60,12 @@ class LoanResource extends Resource
                                     // Calculate EMI
                                     $monthlyRate = $interestRate / 1200; // Annual % to monthly decimal
                                     $n = $loanAge;
-                                    $emi = $state * $monthlyRate * pow(1 + $monthlyRate, $n) / (pow(1 + $monthlyRate, $n) - 1);
+                                    if ($monthlyRate == 0) {
+                                        $emi = $state / $n;
+                                    } else {
+                                        $emi = $state * $monthlyRate * pow(1 + $monthlyRate, $n) / (pow(1 + $monthlyRate, $n) - 1);
+                                    }
+                                    // $emi = $state * $monthlyRate * pow(1 + $monthlyRate, $n) / (pow(1 + $monthlyRate, $n) - 1);
                                     $set('emi_amount', round($emi, 2));
                                     $set('calculation_status', ['status' => 'EMI calculated']);
                                 } else {
@@ -68,9 +75,8 @@ class LoanResource extends Resource
                         Forms\Components\DatePicker::make('loan_start_date')
                             ->label('Loan Start Date')
                             ->required()
-                            ->maxDate(now())
+                            ->disabled(fn($livewire) => $livewire instanceof Pages\EditLoan)
                             ->reactive(),
-                        // [NEW] Added due_date field
                         Forms\Components\DatePicker::make('due_date')
                             ->label('First EMI Due Date')
                             ->required()
@@ -117,6 +123,7 @@ class LoanResource extends Resource
                                 'oninput' => "this.value = this.value.replace(/[^0-9]/g, '')",
                             ])
                             ->reactive()
+                            ->lazy()
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $loanAmount = $get('loan_amount');
                                 $interestRate = $get('interest_rate');
@@ -124,7 +131,11 @@ class LoanResource extends Resource
                                     // Calculate EMI
                                     $monthlyRate = $interestRate / 1200;
                                     $n = $state;
-                                    $emi = $loanAmount * $monthlyRate * pow(1 + $monthlyRate, $n) / (pow(1 + $monthlyRate, $n) - 1);
+                                    if ($monthlyRate == 0) {
+                                        $emi = $loanAmount / $n;
+                                    } else {
+                                        $emi = $loanAmount * $monthlyRate * pow(1 + $monthlyRate, $n) / (pow(1 + $monthlyRate, $n) - 1);
+                                    }
                                     $set('emi_amount', round($emi, 2));
                                     $set('calculation_status', ['status' => 'EMI calculated']);
                                 } else {
@@ -136,21 +147,25 @@ class LoanResource extends Resource
                             ->required()
                             ->numeric()
                             ->suffix('%')
-                            ->minValue(0.1)
+                            ->minValue(0)
                             ->maxValue(50)
                             ->extraInputAttributes([
                                 'type' => 'text',
                                 'oninput' => "this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1')",
                             ])
                             ->reactive()
+                            ->lazy()
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $loanAmount = $get('loan_amount');
                                 $loanAge = $get('loan_age');
-                                if ($loanAmount && $loanAge && $state) {
-                                    // Calculate EMI
+                                if ($loanAmount && $loanAge && $state != null) {
                                     $monthlyRate = $state / 1200;
                                     $n = $loanAge;
-                                    $emi = $loanAmount * $monthlyRate * pow(1 + $monthlyRate, $n) / (pow(1 + $monthlyRate, $n) - 1);
+                                    if ($monthlyRate == 0) {
+                                        $emi = $loanAmount / $n;
+                                    } else {
+                                        $emi = $loanAmount * $monthlyRate * pow(1 + $monthlyRate, $n) / (pow(1 + $monthlyRate, $n) - 1);
+                                    }
                                     $set('emi_amount', round($emi, 2));
                                     $set('calculation_status', ['status' => 'EMI calculated']);
                                 } else {
@@ -169,30 +184,36 @@ class LoanResource extends Resource
                                 'oninput' => "this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1')",
                             ])
                             ->reactive()
+                            ->lazy()
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $loanAmount = $get('loan_amount');
                                 $loanAge = $get('loan_age');
                                 if ($loanAmount && $loanAge && $state) {
-                                    // Calculate Interest Rate using Newton-Raphson
-                                    $guess = 10; // Initial guess: 10%
-                                    $monthlyGuess = $guess / 1200;
                                     $n = $loanAge;
                                     $p = $loanAmount;
                                     $emi = $state;
+                                    $monthlyGuess = 0.01; // initial guess
 
-                                    // Newton-Raphson iteration
                                     for ($i = 0; $i < 100; $i++) {
-                                        $f = $p * $monthlyGuess * pow(1 + $monthlyGuess, $n) / (pow(1 + $monthlyGuess, $n) - 1) - $emi;
-                                        $fPrime = $p * (pow(1 + $monthlyGuess, $n) * (1 + $monthlyGuess + $n * $monthlyGuess) - $n * $monthlyGuess * pow(1 + $monthlyGuess, $n - 1)) / pow(pow(1 + $monthlyGuess, $n) - 1, 2);
+                                        $pow = pow(1 + $monthlyGuess, $n);
+                                        $calculatedEmi = $p * $monthlyGuess * $pow / ($pow - 1);
+                                        $f = $calculatedEmi - $emi;
+
+                                        // derivative approximation
+                                        $delta = 0.000001;
+                                        $powDelta = pow(1 + $monthlyGuess + $delta, $n);
+                                        $calculatedEmiDelta = $p * ($monthlyGuess + $delta) * $powDelta / ($powDelta - 1);
+                                        $fPrime = ($calculatedEmiDelta - $calculatedEmi) / $delta;
+
                                         $newGuess = $monthlyGuess - $f / $fPrime;
-                                        if (abs($newGuess - $monthlyGuess) < 0.000001) {
+                                        if (abs($newGuess - $monthlyGuess) < 0.0000001) {
                                             break;
                                         }
                                         $monthlyGuess = $newGuess;
                                     }
 
                                     $annualRate = $monthlyGuess * 1200;
-                                    if ($annualRate >= 0.1 && $annualRate <= 50) {
+                                    if ($annualRate >= 0 && $annualRate <= 50) {
                                         $set('interest_rate', round($annualRate, 2));
                                         $set('calculation_status', ['status' => 'Interest rate calculated']);
                                     } else {
