@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
 use App\Rules\ValidIfscCode;
+use App\Rules\ValidPanNumber;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -63,6 +64,7 @@ class UserResource extends Resource
                             ->maxLength(12)
                             ->minLength(12)
                             ->numeric()
+                            ->extraInputAttributes(['type' => 'text', 'oninput' => "this.value = this.value.replace(/[^0-9]/g, '')"])
                             ->unique(
                                 table: User::class,
                                 column: 'aadhaar_number',
@@ -82,6 +84,19 @@ class UserResource extends Resource
                             ->label('PAN Number')
                             ->maxLength(10)
                             ->minLength(10)
+                            ->rule(new ValidPanNumber())
+                            ->reactive()
+                            ->extraInputAttributes([
+                                'style' => 'text-transform: uppercase;',
+                                'oninput' => 'this.value = this.value.toUpperCase();',
+                            ])
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (empty($state)) {
+                                    $set('pan_validation', null);
+                                    return;
+                                }
+                                $set('pan_validation', ['status' => 'Format valid']);
+                            })
                             ->unique(
                                 table: User::class,
                                 column: 'pan_number',
@@ -126,12 +141,16 @@ class UserResource extends Resource
                             ->maxLength(500),
                     ])
                     ->columns(2),
-                    Forms\Components\Section::make('Bank Information')
+                Forms\Components\Section::make('Bank Information')
                     ->schema([
                         Forms\Components\TextInput::make('bank_account_number')
                             ->label('Bank Account Number')
                             ->required()
+                            ->extraInputAttributes(['type' => 'text', 'oninput' => "this.value = this.value.replace(/[^0-9]/g, '')"])
+                            ->regex('/^[0-9]{9,20}$/')
                             ->numeric()
+                            ->reactive()
+                            ->minLength(9)
                             ->maxLength(20),
                         Forms\Components\TextInput::make('ifsc_code')
                             ->label('IFSC Code')
@@ -173,7 +192,7 @@ class UserResource extends Resource
                                         ]);
                                     }
                                 }
-                
+
                                 $set('bank_details_temp', $bankDetails);
                                 $set('bank_details', !isset($bankDetails['error']) ? $bankDetails : null); // Set bank_details
                             }),
@@ -189,15 +208,15 @@ class UserResource extends Resource
                                 if ($tempDetails && !isset($tempDetails['error'])) {
                                     return "{$tempDetails['bank']} - {$tempDetails['branch']} ({$tempDetails['city']})";
                                 }
-                
+
                                 if ($tempDetails && isset($tempDetails['error'])) {
                                     return $tempDetails['error'];
                                 }
-                
+
                                 if ($storedDetails) {
                                     return "{$storedDetails['bank']} - {$storedDetails['branch']} ({$storedDetails['city']})";
                                 }
-                
+
                                 return 'Enter a valid IFSC code to see bank details';
                             })
                     ])
