@@ -21,6 +21,7 @@ class Loan extends Model
         'interest_rate',
         'emi_type',
         'emi_amount',
+        'total_amount_paid'
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class Loan extends Model
         'due_date' => 'date',
         'interest_rate' => 'decimal:2',
         'emi_amount' => 'decimal:2',
+        'total_amount_paid' => 'decimal:2',
         'emi_type' => 'string',
     ];
 
@@ -40,5 +42,17 @@ class Loan extends Model
     public function emis(): HasMany
     {
         return $this->hasMany(Emi::class);
+    }
+
+    // Automatically update total_amount_paid when EMIs are updated
+    protected static function booted()
+    {
+        static::saved(function ($loan) {
+            $newTotal = $loan->emis()->sum('emi_paid_amount');
+            if ($loan->total_amount_paid != $newTotal) {
+                $loan->total_amount_paid = $newTotal;
+                $loan->saveQuietly(); // Save without triggering events
+            }
+        });
     }
 }

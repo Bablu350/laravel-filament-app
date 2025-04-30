@@ -223,6 +223,13 @@ class LoanResource extends Resource
                                     $set('calculation_status', ['error' => 'Enter loan amount, age, and EMI to calculate interest rate']);
                                 }
                             }),
+                        Forms\Components\TextInput::make('total_amount_paid')
+                            ->label('Total Amount Paid')
+                            ->numeric()
+                            ->prefix('₹')
+                            ->disabled()
+                            ->reactive()
+                            ->default(0),
                         Forms\Components\Placeholder::make('calculation_status')
                             ->label('Calculation Status')
                             ->content(function ($get) {
@@ -273,6 +280,10 @@ class LoanResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('emi_amount')
                     ->label('EMI Amount')
+                    ->money('INR')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('total_amount_paid')
+                    ->label('Total Amount Paid')
                     ->money('INR')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('deleted_at')

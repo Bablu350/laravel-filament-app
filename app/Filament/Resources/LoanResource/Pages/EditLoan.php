@@ -9,6 +9,7 @@ use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Filament\Notifications\Notification;
+use Livewire\Attributes\On;
 
 class EditLoan extends EditRecord
 {
@@ -76,6 +77,14 @@ class EditLoan extends EditRecord
                 Log::error('EMI creation failed', ['error' => $e->getMessage()]);
                 throw $e; // Re-throw to rollback transaction
             }
+        }
+    }
+    #[On('emi-updated')]
+    public function refreshForm($loanId)
+    {
+        if ($this->record->id == $loanId) {
+            $this->record = $this->record->fresh(); // Reload the Loan model
+            $this->fillForm(); // Refresh the form with updated data
         }
     }
 }
