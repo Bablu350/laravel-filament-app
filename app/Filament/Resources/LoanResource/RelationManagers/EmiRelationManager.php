@@ -36,9 +36,8 @@ class EmiRelationManager extends RelationManager
                     ->maxValue(1000000)
                     ->prefix('₹')
                     ->default(0)
-                    ->dehydrateStateUsing(fn ($state) => $state ?? 0)
+                    ->dehydrateStateUsing(fn($state) => $state ?? 0)
                     ->afterStateUpdated(function ($state, callable $get, callable $set) {
-                        // Calculate fine when emi_paid_amount is updated
                         $emiAmount = $get('emi_amount');
                         $set('fine', $state - $emiAmount);
                     }),
@@ -46,7 +45,7 @@ class EmiRelationManager extends RelationManager
                     ->label('Fine')
                     ->numeric()
                     ->prefix('₹')
-                    ->disabled() // Read-only, calculated automatically
+                    ->disabled()
                     ->default(0),
                 Forms\Components\DatePicker::make('payment_date')
                     ->label('Payment Date')
@@ -97,6 +96,44 @@ class EmiRelationManager extends RelationManager
             ])
             ->bulkActions([
                 // Tables\Actions\DeleteBulkAction::make(),
+                Tables\Actions\BulkAction::make('bulk_edit')
+                    ->label('Bulk Edit')
+                    ->icon('heroicon-m-pencil-square')
+                    ->form([
+                        Forms\Components\TextInput::make('emi_paid_amount')
+                            ->label('EMI Paid Amount')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(1000000)
+                            ->prefix('₹')
+                            ->dehydrateStateUsing(fn($state) => $state ?? 0)
+                            ->default(0),
+                        Forms\Components\DatePicker::make('payment_date')
+                            ->label('Payment Date')
+                            ->nullable(),
+                    ])
+                    ->action(function (array $data, $records) {
+                        // Update selected EMI records
+                        $records->each(function ($emi) use ($data) {
+                            $updateData = [];
+                            if (isset($data['emi_paid_amount'])) {
+                                $updateData['emi_paid_amount'] = $data['emi_paid_amount'] ?? 0;
+                                // Recalculate fine based on emi_paid_amount
+                                $updateData['fine'] = ($updateData['emi_paid_amount'] - $emi->emi_amount >= 0)
+                                    ? $updateData['emi_paid_amount'] - $emi->emi_amount
+                                    : 0;
+                            }
+                            if (isset($data['payment_date'])) {
+                                $updateData['payment_date'] = $data['payment_date'];
+                            }
+                            if (!empty($updateData)) {
+                                $emi->update($updateData);
+                            }
+                        });
+                        // Dispatch event to refresh the parent form
+                        $this->dispatch('emi-updated', loanId: $this->ownerRecord->id);
+                    })
+                    ->deselectRecordsAfterCompletion(),
             ])
             ->modifyQueryUsing(fn($query) => $query->orderBy('due_date'));
     }
