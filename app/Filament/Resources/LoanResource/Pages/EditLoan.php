@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\LoanResource\Pages;
 
 use App\Filament\Resources\LoanResource;
+use App\Filament\Resources\LoanResource\RelationManagers\EmiRelationManager;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Filament\Notifications\Notification;
 
 class EditLoan extends EditRecord
 {
@@ -18,6 +20,12 @@ class EditLoan extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function getSavedNotification(): ?Notification
+    {
+        return null;
+    }
+
     protected function afterSave(): void
     {
         $loan = $this->record;
@@ -58,9 +66,12 @@ class EditLoan extends EditRecord
                         'updated_at' => now(),
                     ];
                 }
-
                 $loan->emis()->createMany($emis);
-                Log::info('EMIs created', ['count' => count($emis)]);
+                $this->dispatch('refreshRelationManager', ['relationManager' => EmiRelationManager::class]);
+                Notification::make()
+                    ->body('The EMI records have been successfully updated.')
+                    ->success()
+                    ->send();
             } catch (\Exception $e) {
                 Log::error('EMI creation failed', ['error' => $e->getMessage()]);
                 throw $e; // Re-throw to rollback transaction

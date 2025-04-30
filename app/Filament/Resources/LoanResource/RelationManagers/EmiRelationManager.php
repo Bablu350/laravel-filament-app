@@ -7,6 +7,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Livewire\Attributes\On;
 
 class EmiRelationManager extends RelationManager
 {
@@ -78,5 +79,14 @@ class EmiRelationManager extends RelationManager
                 // Tables\Actions\DeleteBulkAction::make(),
             ])
             ->modifyQueryUsing(fn($query) => $query->orderBy('due_date'));
+    }
+
+    #[On('refreshRelationManager')]
+    public function refreshTable($data): void
+    {
+        // Log::info('Received refresh-emi-relation-manager event', ['data' => $data]);
+        // if ($data['relationManager'] === static::class) {
+        //     $this->table->refreshRecords();
+        // }
     }
 }
