@@ -259,32 +259,32 @@ class LoanResource extends Resource
                     ->label('Loan Amount')
                     ->money('INR')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('loan_start_date')
-                    ->label('Start Date')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('due_date')
-                    ->label('First EMI Due Date')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('interest_rate')
-                    ->label('Interest Rate (%)')
-                    ->formatStateUsing(fn($state) => number_format($state, 2) . '%')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('loan_age')
-                    ->label('Loan Age')
+                Tables\Columns\TextColumn::make('total_amount_paid')
+                    ->label('Total Amount Paid')
+                    ->money('INR')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('emi_type')
                     ->label('EMI Type')
                     ->formatStateUsing(fn($state) => ucfirst(str_replace('-', ' ', $state)))
                     ->sortable(),
+                Tables\Columns\TextColumn::make('interest_rate')
+                    ->label('Interest Rate (%)')
+                    ->formatStateUsing(fn($state) => number_format($state, 2) . '%')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('emi_amount')
                     ->label('EMI Amount')
                     ->money('INR')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('total_amount_paid')
-                    ->label('Total Amount Paid')
-                    ->money('INR')
+                Tables\Columns\TextColumn::make('due_date')
+                    ->label('First EMI Due Date')
+                    ->date()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('loan_age')
+                    ->label('Loan Age')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('loan_start_date')
+                    ->label('Start Date')
+                    ->date()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('deleted_at')
                     ->label('Deleted At')
