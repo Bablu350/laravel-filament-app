@@ -11,6 +11,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Cache;
@@ -251,13 +252,29 @@ class UserResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->visible(fn($record) => is_null($record->deleted_at)),
-                Tables\Actions\DeleteAction::make(),
-                Tables\Actions\ForceDeleteAction::make(),
+                Tables\Actions\DeleteAction::make()->hidden(fn(User $record) => $record->id === auth()->user()->id),
+                Tables\Actions\ForceDeleteAction::make()->hidden(fn(User $record) => $record->id === auth()->user()->id),
                 Tables\Actions\RestoreAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
-                Tables\Actions\ForceDeleteBulkAction::make(),
+                Tables\Actions\DeleteBulkAction::make()->before(function ($records, $action) {
+                    if ($records->contains(fn(User $record) => $record->id === auth()->user()->id)) {
+                        Notification::make()
+                            ->title('Cannot delete your own account')
+                            ->danger()
+                            ->send();
+                        $action->cancel();
+                    }
+                }),
+                Tables\Actions\ForceDeleteBulkAction::make()->before(function ($records, $action) {
+                    if ($records->contains(fn(User $record) => $record->id === auth()->user()->id)) {
+                        Notification::make()
+                            ->title('Cannot delete your own account')
+                            ->danger()
+                            ->send();
+                        $action->cancel();
+                    }
+                }),
                 Tables\Actions\RestoreBulkAction::make(),
             ])
             ->modifyQueryUsing(fn($query) => $query->withTrashed())
