@@ -38,6 +38,9 @@ class User extends Authenticatable implements FilamentUser
         'pan_card',
         'voter_id_number',
         'voter_id_card',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     /**
@@ -68,5 +71,45 @@ class User extends Authenticatable implements FilamentUser
     {
         // return str_ends_with($this->email, '@yourdomain.com') && $this->hasVerifiedEmail();
         return true;
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function deleter()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($user) {
+            if (auth()->check()) {
+                $user->created_by = auth()->id();
+                $user->updated_by = auth()->id();
+            }
+        });
+
+        static::updating(function ($user) {
+            if (auth()->check()) {
+                $user->updated_by = auth()->id();
+            }
+        });
+
+        static::deleting(function ($user) {
+            if (auth()->check()) {
+                $user->deleted_by = auth()->id();
+                $user->save();
+            }
+        });
     }
 }

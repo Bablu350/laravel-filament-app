@@ -24,6 +24,7 @@ class UserResource extends Resource
 
     public static function form(Form $form): Form
     {
+        $isAdmin = auth()->user()->hasRole('admin');
         return $form
             ->schema([
                 Forms\Components\Section::make('Personal Information')
@@ -45,6 +46,13 @@ class UserResource extends Resource
                             ->label('Role')
                             ->relationship('roles', 'name')
                             ->preload()
+                            ->default(function () use ($isAdmin) {
+                                if ($isAdmin) {
+                                    return \Spatie\Permission\Models\Role::where('name', 'user')->first()?->id;
+                                }
+                                return null;
+                            })
+                            ->disabled($isAdmin)
                             ->required(),
                         Forms\Components\Select::make('gender')
                             ->options([
@@ -167,7 +175,7 @@ class UserResource extends Resource
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if (empty($state)) {
                                     $set('bank_details_temp', null);
-                                    $set('bank_details', null); // Reset bank_details
+                                    $set('bank_details', null);
                                     return;
                                 }
                                 $cacheKey = 'ifsc_' . $state;
@@ -198,9 +206,9 @@ class UserResource extends Resource
                                 }
 
                                 $set('bank_details_temp', $bankDetails);
-                                $set('bank_details', !isset($bankDetails['error']) ? $bankDetails : null); // Set bank_details
+                                $set('bank_details', !isset($bankDetails['error']) ? $bankDetails : null);
                             }),
-                        Forms\Components\Hidden::make('bank_details'), // Hidden field to store bank_details
+                        Forms\Components\Hidden::make('bank_details'),
                         Forms\Components\Placeholder::make('bank_details_display')
                             ->label('Bank Details')
                             ->content(function ($get, $record) {
@@ -230,6 +238,10 @@ class UserResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $user = auth()->user();
+        $isSuperAdmin = $user->hasRole('superadmin');
+        $isAdmin = $user->hasRole('admin');
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')->sortable()->searchable(),
@@ -237,47 +249,84 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('gender')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('date_of_birth')->date()->sortable(),
                 Tables\Columns\TextColumn::make('pincode')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('roles.name')->label('Role')->sortable(),
+                Tables\Columns\TextColumn::make('roles.name')->label('Role')->sortable()->visible($isSuperAdmin),
                 Tables\Columns\TextColumn::make('deleted_at')
                     ->label('Deleted At')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('creator.name')
+                    ->label('Created By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('updater.name')
+                    ->label('Updated By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('deleter.name')
+                    ->label('Deleted By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible($isSuperAdmin),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('roles')
                     ->label('Role')
                     ->relationship('roles', 'name')
+                    ->visible($isSuperAdmin),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => is_null($record->deleted_at)),
-                Tables\Actions\DeleteAction::make()->hidden(fn(User $record) => $record->id === auth()->user()->id),
-                Tables\Actions\ForceDeleteAction::make()->hidden(fn(User $record) => $record->id === auth()->user()->id),
-                Tables\Actions\RestoreAction::make(),
+                    ->visible(fn($record) => is_null($record->deleted_at) && ($isSuperAdmin || ($isAdmin && $record->hasRole('user')))),
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(fn(User $record) => $record->id === auth()->user()->id || ($isAdmin && !$record->hasRole('user')))
+                    ->visible($isSuperAdmin || $isAdmin),
+                Tables\Actions\ForceDeleteAction::make()
+                    ->hidden(fn(User $record) => $record->id === auth()->user()->id)
+                    ->visible(fn($record) => $isSuperAdmin && !is_null($record->deleted_at)), // Only for soft-deleted users
+                Tables\Actions\RestoreAction::make()
+                    ->visible(fn($record) => $isSuperAdmin && !is_null($record->deleted_at)), // Only for soft-deleted users
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->before(function ($records, $action) {
-                    if ($records->contains(fn(User $record) => $record->id === auth()->user()->id)) {
-                        Notification::make()
-                            ->title('Cannot delete your own account')
-                            ->danger()
-                            ->send();
-                        $action->cancel();
-                    }
-                }),
-                Tables\Actions\ForceDeleteBulkAction::make()->before(function ($records, $action) {
-                    if ($records->contains(fn(User $record) => $record->id === auth()->user()->id)) {
-                        Notification::make()
-                            ->title('Cannot delete your own account')
-                            ->danger()
-                            ->send();
-                        $action->cancel();
-                    }
-                }),
-                Tables\Actions\RestoreBulkAction::make(),
+                Tables\Actions\DeleteBulkAction::make()
+                    ->before(function ($records, $action) {
+                        if ($records->contains(fn(User $record) => $record->id === auth()->user()->id)) {
+                            Notification::make()
+                                ->title('Cannot delete your own account')
+                                ->danger()
+                                ->send();
+                            $action->cancel();
+                        }
+                    })
+                    ->visible($isSuperAdmin),
+                Tables\Actions\ForceDeleteBulkAction::make()
+                    ->before(function ($records, $action) {
+                        if ($records->contains(fn(User $record) => $record->id === auth()->user()->id)) {
+                            Notification::make()
+                                ->title('Cannot delete your own account')
+                                ->danger()
+                                ->send();
+                            $action->cancel();
+                        }
+                    })
+                    ->visible($isSuperAdmin),
+                Tables\Actions\RestoreBulkAction::make()
+                    ->visible($isSuperAdmin),
             ])
-            ->modifyQueryUsing(fn($query) => $query->withTrashed())
+            ->modifyQueryUsing(function ($query) use ($isSuperAdmin, $isAdmin) {
+                if ($isSuperAdmin) {
+                    return $query->withTrashed();
+                } elseif ($isAdmin) {
+                    return $query->whereHas('roles', fn($q) => $q->where('name', 'user'));
+                }
+                return $query;
+            })
             ->recordUrl(fn($record) => is_null($record->deleted_at) ? route('filament.admin.resources.users.edit', $record) : null);
     }
 
