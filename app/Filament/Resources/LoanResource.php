@@ -12,7 +12,6 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon; // [NEW] Added for date manipulation
 use Illuminate\Support\Facades\Auth;
 
 class LoanResource extends Resource
@@ -29,10 +28,13 @@ class LoanResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('user_id')
                             ->label('User Full Name')
-                            ->options(function () {
-                                return User::query()
-                                    ->pluck('name', 'id')
-                                    ->toArray();
+                            ->options(function ($livewire, $record) {
+                                $query = User::query()
+                                    ->where('user_verified', true);
+                                if ($livewire instanceof Pages\EditLoan && $record) {
+                                    $query->orWhere('id', $record->user_id);
+                                }
+                                return $query->pluck('name', 'id')->toArray();
                             })
                             ->searchable()
                             ->required()
