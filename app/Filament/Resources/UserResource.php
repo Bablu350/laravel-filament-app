@@ -64,7 +64,21 @@ class UserResource extends Resource
                         Forms\Components\DatePicker::make('date_of_birth')
                             ->required()
                             ->maxDate(now()),
-                    ])->columns(2),
+                        Forms\Components\Toggle::make('p_info_verified')
+                            ->label('Personal Info Verified')
+                            ->disabled($isAdmin)
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (!$state) {
+                                    $set('user_verified', false);
+                                }
+                            })
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
+                        Forms\Components\Placeholder::make('p_info_verified_by')
+                            ->label('Verified By')
+                            ->content(fn($record) => $record?->p_info_verifier?->name ?? 'N/A')
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
+                    ])->columns(3),
                 Forms\Components\Section::make('Identity Information')
                     ->schema([
                         Forms\Components\TextInput::make('aadhaar_number')
@@ -139,6 +153,20 @@ class UserResource extends Resource
                             ->openable()
                             ->visibility('private')
                             ->maxSize(5120),
+                        Forms\Components\Toggle::make('doc_verified')
+                            ->label('Documents Verified')
+                            ->disabled($isAdmin)
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (!$state) {
+                                    $set('user_verified', false);
+                                }
+                            })
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
+                        Forms\Components\Placeholder::make('doc_verified_by')
+                            ->label('Verified By')
+                            ->content(fn($record) => $record?->doc_verifier?->name ?? 'N/A')
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('Address Information')
@@ -150,6 +178,20 @@ class UserResource extends Resource
                         Forms\Components\Textarea::make('address')
                             ->required()
                             ->maxLength(500),
+                        Forms\Components\Toggle::make('address_verified')
+                            ->label('Address Verified')
+                            ->disabled($isAdmin)
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (!$state) {
+                                    $set('user_verified', false);
+                                }
+                            })
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
+                        Forms\Components\Placeholder::make('address_verified_by')
+                            ->label('Verified By')
+                            ->content(fn($record) => $record?->address_verifier?->name ?? 'N/A')
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('Bank Information')
@@ -230,9 +272,44 @@ class UserResource extends Resource
                                 }
 
                                 return 'Enter a valid IFSC code to see bank details';
+                            }),
+                        Forms\Components\Toggle::make('bank_verified')
+                            ->label('Bank Verified')
+                            ->disabled($isAdmin)
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (!$state) {
+                                    $set('user_verified', false);
+                                }
                             })
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
+                        Forms\Components\Placeholder::make('bank_verified_by')
+                            ->label('Verified By')
+                            ->content(fn($record) => $record?->bank_verifier?->name ?? 'N/A')
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
+                    ])
+                    ->columns(3),
+                Forms\Components\Section::make('Verification Status')
+                    ->schema([
+                        Forms\Components\Toggle::make('user_verified')
+                            ->label('User Fully Verified')
+                            ->disabled(function ($get, $record) use ($isAdmin) {
+                                if ($isAdmin || !$record) {
+                                    return true;
+                                }
+                                return !($get('p_info_verified') && $get('doc_verified') && $get('address_verified') && $get('bank_verified'));
+                            })
+                            ->reactive()
+                            ->dehydrated()
+                            ->helperText('Enabled only when all verification fields are checked.')
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
+                        Forms\Components\Placeholder::make('user_verified_by')
+                            ->label('User Verified By')
+                            ->content(fn($record) => $record?->user_verifier?->name ?? 'N/A')
+                            ->visible($isAdmin ? fn($record) => $record !== null : true),
                     ])
                     ->columns(2)
+                    ->visible($isAdmin ? fn($record) => $record !== null : true),
             ]);
     }
 
@@ -249,12 +326,61 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('gender')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('date_of_birth')->date()->sortable(),
                 Tables\Columns\TextColumn::make('pincode')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('roles.name')->label('Role')->sortable()->visible($isSuperAdmin),
-                Tables\Columns\TextColumn::make('deleted_at')
-                    ->label('Deleted At')
-                    ->dateTime()
+                Tables\Columns\TextColumn::make('roles.name')->label('Role')->sortable(),
+                Tables\Columns\IconColumn::make('p_info_verified')
+                    ->label('Personal Info Verified')
+                    ->boolean()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('p_info_verifier.name')
+                    ->label('Personal Info Verified By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible($isSuperAdmin),
+                Tables\Columns\IconColumn::make('doc_verified')
+                    ->label('Documents Verified')
+                    ->boolean()
+                    ->sortable()
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('doc_verifier.name')
+                    ->label('Documents Verified By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible($isSuperAdmin),
+                Tables\Columns\IconColumn::make('address_verified')
+                    ->label('Address Verified')
+                    ->boolean()
+                    ->sortable()
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('address_verifier.name')
+                    ->label('Address Verified By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible($isSuperAdmin),
+                Tables\Columns\IconColumn::make('bank_verified')
+                    ->label('Bank Verified')
+                    ->boolean()
+                    ->sortable()
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('bank_verifier.name')
+                    ->label('Bank Verified By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible($isSuperAdmin),
+                Tables\Columns\IconColumn::make('user_verified')
+                    ->label('User Verified')
+                    ->boolean()
+                    ->sortable()
+                    ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('user_verifier.name')
+                    ->label('User Verified By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
                     ->visible($isSuperAdmin),
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Created By')
@@ -274,6 +400,12 @@ class UserResource extends Resource
                     ->searchable()
                     ->default('N/A')
                     ->visible($isSuperAdmin),
+                Tables\Columns\TextColumn::make('deleted_at')
+                    ->label('Deleted At')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible($isSuperAdmin),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('roles')
@@ -289,9 +421,9 @@ class UserResource extends Resource
                     ->visible($isSuperAdmin || $isAdmin),
                 Tables\Actions\ForceDeleteAction::make()
                     ->hidden(fn(User $record) => $record->id === auth()->user()->id)
-                    ->visible(fn($record) => $isSuperAdmin && !is_null($record->deleted_at)), // Only for soft-deleted users
+                    ->visible(fn($record) => $isSuperAdmin && !is_null($record->deleted_at)),
                 Tables\Actions\RestoreAction::make()
-                    ->visible(fn($record) => $isSuperAdmin && !is_null($record->deleted_at)), // Only for soft-deleted users
+                    ->visible(fn($record) => $isSuperAdmin && !is_null($record->deleted_at)),
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
@@ -321,7 +453,7 @@ class UserResource extends Resource
             ])
             ->modifyQueryUsing(function ($query) use ($isSuperAdmin, $isAdmin) {
                 if ($isSuperAdmin) {
-                    return $query->withTrashed();
+                    return $query->withTrashed()->with(['creator', 'updater', 'deleter', 'p_info_verifier', 'doc_verifier', 'address_verifier', 'bank_verifier', 'user_verifier']);
                 } elseif ($isAdmin) {
                     return $query->whereHas('roles', fn($q) => $q->where('name', 'user'));
                 }

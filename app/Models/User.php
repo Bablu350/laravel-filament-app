@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -13,14 +12,8 @@ use Filament\Panel;
 
 class User extends Authenticatable implements FilamentUser
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -41,35 +34,39 @@ class User extends Authenticatable implements FilamentUser
         'created_by',
         'updated_by',
         'deleted_by',
+        'p_info_verified',
+        'doc_verified',
+        'address_verified',
+        'bank_verified',
+        'user_verified',
+        'p_info_verified_by',
+        'doc_verified_by',
+        'address_verified_by',
+        'bank_verified_by',
+        'user_verified_by',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'bank_details' => 'array',
+            'p_info_verified' => 'boolean',
+            'doc_verified' => 'boolean',
+            'address_verified' => 'boolean',
+            'bank_verified' => 'boolean',
+            'user_verified' => 'boolean',
         ];
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // return str_ends_with($this->email, '@yourdomain.com') && $this->hasVerifiedEmail();
         return true;
     }
 
@@ -88,6 +85,30 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
+    public function p_info_verifier()
+    {
+        return $this->belongsTo(User::class, 'p_info_verified_by');
+    }
+
+    public function doc_verifier()
+    {
+        return $this->belongsTo(User::class, 'doc_verified_by');
+    }
+
+    public function address_verifier()
+    {
+        return $this->belongsTo(User::class, 'address_verified_by');
+    }
+
+    public function bank_verifier()
+    {
+        return $this->belongsTo(User::class, 'bank_verified_by');
+    }
+    public function user_verifier()
+    {
+        return $this->belongsTo(User::class, 'user_verified_by');
+    }
+
     public static function boot()
     {
         parent::boot();
@@ -97,12 +118,16 @@ class User extends Authenticatable implements FilamentUser
                 $user->created_by = auth()->id();
                 $user->updated_by = auth()->id();
             }
+            // $user->updateUserVerified();
+            $user->updateVerifiedBy();
         });
 
         static::updating(function ($user) {
             if (auth()->check()) {
                 $user->updated_by = auth()->id();
             }
+            // $user->updateUserVerified();
+            $user->updateVerifiedBy();
         });
 
         static::deleting(function ($user) {
@@ -111,5 +136,22 @@ class User extends Authenticatable implements FilamentUser
                 $user->save();
             }
         });
+    }
+
+    // protected function updateUserVerified()
+    // {
+    //     $this->user_verified = $this->p_info_verified && $this->doc_verified && $this->address_verified && $this->bank_verified;
+    // }
+
+    protected function updateVerifiedBy()
+    {
+        if (auth()->check()) {
+            $userId = auth()->id();
+            $this->p_info_verified_by = $this->p_info_verified ? $userId : null;
+            $this->doc_verified_by = $this->doc_verified ? $userId : null;
+            $this->address_verified_by = $this->address_verified ? $userId : null;
+            $this->bank_verified_by = $this->bank_verified ? $userId : null;
+            $this->user_verified_by = $this->user_verified ? $userId : null;
+        }
     }
 }
