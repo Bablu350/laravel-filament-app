@@ -31,12 +31,18 @@ class UserResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->disabled(function ($get) {
+                                return $get('p_info_verified') === true;
+                            }),
                         Forms\Components\TextInput::make('email')
                             ->email()
                             ->required()
                             ->maxLength(255)
-                            ->unique(ignorable: fn($record) => $record),
+                            ->unique(ignorable: fn($record) => $record)
+                            ->disabled(function ($get) {
+                                return $get('p_info_verified') === true;
+                            }),
                         Forms\Components\TextInput::make('password')
                             ->password()
                             ->required(fn($livewire) => $livewire instanceof Pages\CreateUser)
@@ -52,7 +58,12 @@ class UserResource extends Resource
                                 }
                                 return null;
                             })
-                            ->disabled($isAdmin)
+                            ->disabled(function ($get) use ($isAdmin) {
+                                if ($isAdmin) {
+                                    return true;
+                                }
+                                return $get('p_info_verified') === true;
+                            })
                             ->required(),
                         Forms\Components\Select::make('gender')
                             ->options([
@@ -60,13 +71,18 @@ class UserResource extends Resource
                                 'female' => 'Female',
                                 'other' => 'Other',
                             ])
-                            ->required(),
+                            ->required()
+                            ->disabled(function ($get) {
+                                return $get('p_info_verified') === true;
+                            }),
                         Forms\Components\DatePicker::make('date_of_birth')
                             ->required()
-                            ->maxDate(now()),
+                            ->maxDate(now())
+                            ->disabled(function ($get) {
+                                return $get('p_info_verified') === true;
+                            }),
                         Forms\Components\Toggle::make('p_info_verified')
                             ->label('Personal Info Verified')
-                            ->disabled($isAdmin)
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if (!$state) {
@@ -92,7 +108,10 @@ class UserResource extends Resource
                                 table: User::class,
                                 column: 'aadhaar_number',
                                 ignorable: fn($record) => $record,
-                            ),
+                            )
+                            ->disabled(function ($get) {
+                                return $get('doc_verified') === true;
+                            }),
                         Forms\Components\FileUpload::make('aadhaar_card')
                             ->label('Aadhaar Card (Photo/PDF)')
                             ->required()
@@ -102,7 +121,10 @@ class UserResource extends Resource
                             ->previewable(true)
                             ->openable()
                             ->visibility('private')
-                            ->maxSize(5120),
+                            ->maxSize(5120)
+                            ->disabled(function ($get) {
+                                return $get('doc_verified') === true;
+                            }),
                         Forms\Components\TextInput::make('pan_number')
                             ->label('PAN Number')
                             ->maxLength(10)
@@ -126,7 +148,10 @@ class UserResource extends Resource
                                 table: User::class,
                                 column: 'pan_number',
                                 ignorable: fn($record) => $record,
-                            ),
+                            )
+                            ->disabled(function ($get) {
+                                return $get('doc_verified') === true;
+                            }),
                         Forms\Components\FileUpload::make('pan_card')
                             ->label('PAN Card (Photo/PDF)')
                             ->acceptedFileTypes(['image/*', 'application/pdf'])
@@ -135,7 +160,10 @@ class UserResource extends Resource
                             ->previewable(true)
                             ->openable()
                             ->visibility('private')
-                            ->maxSize(5120),
+                            ->maxSize(5120)
+                            ->disabled(function ($get) {
+                                return $get('doc_verified') === true;
+                            }),
                         Forms\Components\TextInput::make('voter_id_number')
                             ->label('Voter ID Number')
                             ->maxLength(20)
@@ -143,7 +171,10 @@ class UserResource extends Resource
                                 table: User::class,
                                 column: 'voter_id_number',
                                 ignorable: fn($record) => $record,
-                            ),
+                            )
+                            ->disabled(function ($get) {
+                                return $get('doc_verified') === true;
+                            }),
                         Forms\Components\FileUpload::make('voter_id_card')
                             ->label('Voter ID Card (Photo/PDF)')
                             ->acceptedFileTypes(['image/*', 'application/pdf'])
@@ -152,10 +183,12 @@ class UserResource extends Resource
                             ->previewable(true)
                             ->openable()
                             ->visibility('private')
-                            ->maxSize(5120),
+                            ->maxSize(5120)
+                            ->disabled(function ($get) {
+                                return $get('doc_verified') === true;
+                            }),
                         Forms\Components\Toggle::make('doc_verified')
                             ->label('Documents Verified')
-                            ->disabled($isAdmin)
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if (!$state) {
@@ -174,13 +207,18 @@ class UserResource extends Resource
                         Forms\Components\TextInput::make('pincode')
                             ->required()
                             ->maxLength(6)
-                            ->minLength(6),
+                            ->minLength(6)
+                            ->disabled(function ($get) {
+                                return $get('address_verified') === true;
+                            }),
                         Forms\Components\Textarea::make('address')
                             ->required()
-                            ->maxLength(500),
+                            ->maxLength(500)
+                            ->disabled(function ($get) {
+                                return $get('address_verified') === true;
+                            }),
                         Forms\Components\Toggle::make('address_verified')
                             ->label('Address Verified')
-                            ->disabled($isAdmin)
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if (!$state) {
@@ -204,7 +242,10 @@ class UserResource extends Resource
                             ->numeric()
                             ->reactive()
                             ->minLength(9)
-                            ->maxLength(20),
+                            ->maxLength(20)
+                            ->disabled(function ($get) {
+                                return $get('bank_verified') === true;
+                            }),
                         Forms\Components\TextInput::make('ifsc_code')
                             ->label('IFSC Code')
                             ->required()
@@ -249,6 +290,9 @@ class UserResource extends Resource
 
                                 $set('bank_details_temp', $bankDetails);
                                 $set('bank_details', !isset($bankDetails['error']) ? $bankDetails : null);
+                            })
+                            ->disabled(function ($get) {
+                                return $get('bank_verified') === true;
                             }),
                         Forms\Components\Hidden::make('bank_details'),
                         Forms\Components\Placeholder::make('bank_details_display')
@@ -275,7 +319,6 @@ class UserResource extends Resource
                             }),
                         Forms\Components\Toggle::make('bank_verified')
                             ->label('Bank Verified')
-                            ->disabled($isAdmin)
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if (!$state) {

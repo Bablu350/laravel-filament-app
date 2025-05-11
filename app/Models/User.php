@@ -104,6 +104,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->belongsTo(User::class, 'bank_verified_by');
     }
+
     public function user_verifier()
     {
         return $this->belongsTo(User::class, 'user_verified_by');
@@ -118,7 +119,6 @@ class User extends Authenticatable implements FilamentUser
                 $user->created_by = auth()->id();
                 $user->updated_by = auth()->id();
             }
-            // $user->updateUserVerified();
             $user->updateVerifiedBy();
         });
 
@@ -126,7 +126,6 @@ class User extends Authenticatable implements FilamentUser
             if (auth()->check()) {
                 $user->updated_by = auth()->id();
             }
-            // $user->updateUserVerified();
             $user->updateVerifiedBy();
         });
 
@@ -138,20 +137,30 @@ class User extends Authenticatable implements FilamentUser
         });
     }
 
-    // protected function updateUserVerified()
-    // {
-    //     $this->user_verified = $this->p_info_verified && $this->doc_verified && $this->address_verified && $this->bank_verified;
-    // }
-
     protected function updateVerifiedBy()
     {
         if (auth()->check()) {
             $userId = auth()->id();
-            $this->p_info_verified_by = $this->p_info_verified ? $userId : null;
-            $this->doc_verified_by = $this->doc_verified ? $userId : null;
-            $this->address_verified_by = $this->address_verified ? $userId : null;
-            $this->bank_verified_by = $this->bank_verified ? $userId : null;
-            $this->user_verified_by = $this->user_verified ? $userId : null;
+
+            if ($this->isDirty('p_info_verified')) {
+                $this->p_info_verified_by = $this->p_info_verified ? $userId : null;
+            }
+
+            if ($this->isDirty('doc_verified')) {
+                $this->doc_verified_by = $this->doc_verified ? $userId : null;
+            }
+
+            if ($this->isDirty('address_verified')) {
+                $this->address_verified_by = $this->address_verified ? $userId : null;
+            }
+
+            if ($this->isDirty('bank_verified')) {
+                $this->bank_verified_by = $this->bank_verified ? $userId : null;
+            }
+
+            if ($this->isDirty('user_verified')) {
+                $this->user_verified_by = $this->user_verified ? $userId : null;
+            }
         }
     }
 }
