@@ -25,76 +25,108 @@ class UserResource extends Resource
     public static function form(Form $form): Form
     {
         $isAdmin = auth()->user()->hasRole('admin');
+        $isCreatePage = $form->getLivewire() instanceof Pages\CreateUser;
+
+        // Get the "user" role ID for default
+        $userRoleId = \Spatie\Permission\Models\Role::where('name', 'user')->first()?->id;
+
+        // Personal Information section for Create page (limited fields)
+        $personalInformationCreateSection = Forms\Components\Section::make('Personal Information')
+            ->schema([
+                Forms\Components\TextInput::make('name')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('email')
+                    ->email()
+                    ->required()
+                    ->maxLength(255)
+                    ->unique(ignorable: fn($record) => $record),
+                Forms\Components\TextInput::make('password')
+                    ->password()
+                    ->required()
+                    ->minLength(8)
+                    ->dehydrated(fn($state) => filled($state)),
+                Forms\Components\Select::make('roles')
+                    ->label('Role')
+                    ->relationship('roles', 'name')
+                    ->preload()
+                    ->default($userRoleId)
+                    ->disabled($isAdmin)
+                    ->required(),
+            ])->columns(2);
+
+        // Personal Information section for Edit page (all fields)
+        $personalInformationEditSection = Forms\Components\Section::make('Personal Information')
+            ->schema([
+                Forms\Components\TextInput::make('name')
+                    ->required()
+                    ->maxLength(255)
+                    ->disabled(function ($get) {
+                        return $get('p_info_verified') === true;
+                    }),
+                Forms\Components\TextInput::make('email')
+                    ->email()
+                    ->required()
+                    ->maxLength(255)
+                    ->unique(ignorable: fn($record) => $record)
+                    ->disabled(function ($get) {
+                        return $get('p_info_verified') === true;
+                    }),
+                Forms\Components\TextInput::make('password')
+                    ->password()
+                    ->required(fn($livewire) => $livewire instanceof Pages\CreateUser)
+                    ->minLength(8)
+                    ->dehydrated(fn($state) => filled($state)),
+                Forms\Components\Select::make('roles')
+                    ->label('Role')
+                    ->relationship('roles', 'name')
+                    ->preload()
+                    ->default($userRoleId)
+                    ->disabled(function ($get) use ($isAdmin) {
+                        if ($isAdmin) {
+                            return true;
+                        }
+                        return $get('p_info_verified') === true;
+                    })
+                    ->required(),
+                Forms\Components\Select::make('gender')
+                    ->options([
+                        'male' => 'Male',
+                        'female' => 'Female',
+                        'other' => 'Other',
+                    ])
+                    ->required()
+                    ->disabled(function ($get) {
+                        return $get('p_info_verified') === true;
+                    }),
+                Forms\Components\DatePicker::make('date_of_birth')
+                    ->required()
+                    ->maxDate(now())
+                    ->disabled(function ($get) {
+                        return $get('p_info_verified') === true;
+                    }),
+                Forms\Components\Toggle::make('p_info_verified')
+                    ->label('Personal Info Verified')
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        if (!$state) {
+                            $set('user_verified', false);
+                        }
+                    })
+                    ->visible($isAdmin ? fn($record) => $record !== null : true),
+                Forms\Components\Placeholder::make('p_info_verified_by')
+                    ->label('Verified By')
+                    ->content(fn($record) => $record?->p_info_verifier?->name ?? 'N/A')
+                    ->visible($isAdmin ? fn($record) => $record !== null : true),
+            ])->columns(3);
+        if ($isCreatePage) {
+            return $form->schema([
+                $personalInformationCreateSection,
+            ]);
+        }
         return $form
             ->schema([
-                Forms\Components\Section::make('Personal Information')
-                    ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->required()
-                            ->maxLength(255)
-                            ->disabled(function ($get) {
-                                return $get('p_info_verified') === true;
-                            }),
-                        Forms\Components\TextInput::make('email')
-                            ->email()
-                            ->required()
-                            ->maxLength(255)
-                            ->unique(ignorable: fn($record) => $record)
-                            ->disabled(function ($get) {
-                                return $get('p_info_verified') === true;
-                            }),
-                        Forms\Components\TextInput::make('password')
-                            ->password()
-                            ->required(fn($livewire) => $livewire instanceof Pages\CreateUser)
-                            ->minLength(8)
-                            ->dehydrated(fn($state) => filled($state)),
-                        Forms\Components\Select::make('roles')
-                            ->label('Role')
-                            ->relationship('roles', 'name')
-                            ->preload()
-                            ->default(function () use ($isAdmin) {
-                                if ($isAdmin) {
-                                    return \Spatie\Permission\Models\Role::where('name', 'user')->first()?->id;
-                                }
-                                return null;
-                            })
-                            ->disabled(function ($get) use ($isAdmin) {
-                                if ($isAdmin) {
-                                    return true;
-                                }
-                                return $get('p_info_verified') === true;
-                            })
-                            ->required(),
-                        Forms\Components\Select::make('gender')
-                            ->options([
-                                'male' => 'Male',
-                                'female' => 'Female',
-                                'other' => 'Other',
-                            ])
-                            ->required()
-                            ->disabled(function ($get) {
-                                return $get('p_info_verified') === true;
-                            }),
-                        Forms\Components\DatePicker::make('date_of_birth')
-                            ->required()
-                            ->maxDate(now())
-                            ->disabled(function ($get) {
-                                return $get('p_info_verified') === true;
-                            }),
-                        Forms\Components\Toggle::make('p_info_verified')
-                            ->label('Personal Info Verified')
-                            ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                if (!$state) {
-                                    $set('user_verified', false);
-                                }
-                            })
-                            ->visible($isAdmin ? fn($record) => $record !== null : true),
-                        Forms\Components\Placeholder::make('p_info_verified_by')
-                            ->label('Verified By')
-                            ->content(fn($record) => $record?->p_info_verifier?->name ?? 'N/A')
-                            ->visible($isAdmin ? fn($record) => $record !== null : true),
-                    ])->columns(3),
+                $personalInformationEditSection,
                 Forms\Components\Section::make('Identity Information')
                     ->schema([
                         Forms\Components\TextInput::make('aadhaar_number')

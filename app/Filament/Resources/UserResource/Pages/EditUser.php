@@ -13,7 +13,8 @@ class EditUser extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->hidden(fn(): bool => $this->record->id === auth()->id()),
         ];
     }
     protected function mutateFormDataBeforeSave(array $data): array

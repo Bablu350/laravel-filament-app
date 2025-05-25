@@ -4,10 +4,12 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\AdminDashboard;
 use App\Filament\Pages\UserDashboard;
+use App\Filament\Pages\ChangePassword;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\MenuItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -56,6 +58,13 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 // \Spatie\Permission\Middleware\RoleMiddleware::class.':superadmin|admin'
+            ])
+            ->userMenuItems([
+                MenuItem::make()
+                    ->label('Change Password')
+                    ->icon('heroicon-o-key')
+                    ->url(fn() => ChangePassword::getUrl())
+                    ->sort(1),
             ]);
     }
 }
