@@ -34,7 +34,9 @@ class MyProfile extends Page
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Personal Information')
+                Forms\Components\Section::make(auth()->user()->p_info_verified ? 'Personal Information - Verified' : 'Personal Information')
+                    ->icon('heroicon-o-check-circle')
+                    ->iconColor(fn() => auth()->user()->p_info_verified ? 'success' : null)
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -68,7 +70,9 @@ class MyProfile extends Page
                             }),
                     ])
                     ->columns(4),
-                Forms\Components\Section::make('Identity Information')
+                Forms\Components\Section::make(auth()->user()->doc_verified ? 'Identity Information - Verified' : 'Identity Information')
+                    ->icon('heroicon-o-check-circle')
+                    ->iconColor(fn() => auth()->user()->doc_verified ? 'success' : null)
                     ->schema([
                         Forms\Components\TextInput::make('aadhaar_number')
                             ->label('Aadhaar Number')
@@ -162,7 +166,9 @@ class MyProfile extends Page
                             }),
                     ])
                     ->columns(2),
-                Forms\Components\Section::make('Address Information')
+                Forms\Components\Section::make(auth()->user()->address_verified ? 'Address Information - Verified' : 'Address Information')
+                    ->icon('heroicon-o-check-circle')
+                    ->iconColor(fn() => auth()->user()->address_verified ? 'success' : null)
                     ->schema([
                         Forms\Components\TextInput::make('pincode')
                             ->required()
@@ -179,7 +185,9 @@ class MyProfile extends Page
                             }),
                     ])
                     ->columns(2),
-                Forms\Components\Section::make('Bank Information')
+                Forms\Components\Section::make(auth()->user()->bank_verified ? 'Bank Information - Verified' : 'Bank Information')
+                    ->icon('heroicon-o-check-circle')
+                    ->iconColor(fn() => auth()->user()->bank_verified ? 'success' : null)
                     ->schema([
                         Forms\Components\TextInput::make('bank_account_number')
                             ->label('Bank Account Number')
@@ -292,6 +300,7 @@ class MyProfile extends Page
             Action::make('save')
                 ->label('Save')
                 ->action('submit')
+                ->disabled(fn() => auth()->user()->user_verified)
                 ->color('primary'),
         ];
     }
