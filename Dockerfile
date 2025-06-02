@@ -5,10 +5,8 @@ EXPOSE $APP_UID
 ARG APP_GID=1000
 ENV APP_GID=${APP_GID:-1000}
 EXPOSE $APP_GID
-RUN apt update -y
-RUN apt upgrade -y
-RUN apt dist-upgrade -y
-RUN apt install -y gnupg2 lsb-release ca-certificates apt-transport-https wget curl git default-mysql-client pv screen tzdata wget
+RUN apt update -y && apt upgrade -y && apt dist-upgrade -y
+RUN apt install -y gnupg2 lsb-release ca-certificates apt-transport-https wget curl default-mysql-client pv screen tzdata wget unzip
 RUN apt-get install -y software-properties-common
 
 # Install Basic Requirements
