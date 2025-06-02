@@ -24,4 +24,4 @@ RUN apt install -y php8.2-cli php8.2-bz2 php-common php8.2-curl php8.2-gd php8.2
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 WORKDIR /web
 COPY . /web
-CMD ["/bin/sh", "-c", "if [ ! -f vendor/autoload.php ]; then composer update; fi && cd public && php -S 0.0.0.0:8000"]
+CMD ["/bin/sh", "-c", "if [ ! -f vendor/autoload.php ]; then composer update; fi && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
