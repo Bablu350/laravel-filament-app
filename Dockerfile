@@ -1,52 +1,25 @@
-# Use an official PHP image with Apache
-FROM php:8.2-apache
+FROM debian:bookworm-slim
+ARG APP_UID=1000
+ENV APP_UID=${APP_UID:-1000}
+EXPOSE $APP_UID
+ARG APP_GID=1000
+ENV APP_GID=${APP_GID:-1000}
+EXPOSE $APP_GID
+RUN apt update -y
+RUN apt upgrade -y
+RUN apt dist-upgrade -y
+RUN apt install -y gnupg2 lsb-release ca-certificates apt-transport-https wget curl git default-mysql-client pv screen tzdata wget
+RUN apt-get install -y software-properties-common
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    nodejs \
-    npm \
-    libicu-dev \
-    zlib1g-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Install Basic Requirements
+RUN buildDeps='gcc make autoconf libc-dev zlib1g-dev pkg-config' \
+  && set -x \
+  && apt update -y \
+  && apt install -y gnupg2 dirmngr wget curl apt-transport-https lsb-release ca-certificates \
+  && wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg \
+  && echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd intl zip
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Set working directory
-WORKDIR /var/www/html
-
-# Copy application files
-COPY . .
-
-# Install PHP dependencies
-RUN composer install --optimize-autoloader --no-dev
-
-# Install Node.js dependencies and build frontend assets
-RUN npm install && npm run build
-
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Enable Apache rewrite module
-RUN a2enmod rewrite
-
-# Copy Apache configuration
-COPY ./apache.conf /etc/apache2/sites-available/000-default.conf
-
-# Expose port 80
-EXPOSE 80
-
-# Start Apache
-CMD ["apache2-foreground"]
+RUN apt update -y
+RUN apt install -y php8.2-cli php8.2-bz2 php-common php8.2-curl php8.2-gd php8.2-mbstring php8.2-mysql php8.2-pgsql php8.2-sqlite3 php8.2-xml php8.2-curl php8.2-soap php8.2-bcmath php8.2-zip php8.2-gd php8.2-imagick php8.2-intl
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
+CMD ["/bin/sh", "-c", "if [ ! -f vendor/autoload.php ]; then composer update; fi && cd public && php -S 0.0.0.0:8000"]

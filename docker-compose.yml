@@ -1,0 +1,14 @@
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: ./Dockerfile
+      args:
+        APP_UID: 1000
+        APP_GID: 1000
+    restart: always
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./:/web
+    working_dir: /web
