@@ -1,24 +1,31 @@
 FROM php:8.2-fpm
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
-  git unzip curl libpng-dev libonig-dev libxml2-dev zip libzip-dev libpq-dev \
-  && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring zip exif pcntl gd intl
+    nginx curl git unzip zip libzip-dev libonig-dev libxml2-dev \
+    libpq-dev libicu-dev sqlite3 libsqlite3-dev default-mysql-client supervisor \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql pdo_sqlite mbstring exif pcntl bcmath zip intl
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
+# Setup working directory
 WORKDIR /var/www
 
-# Copy app
+# Copy Laravel app files
 COPY . .
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www \
   && chmod -R 755 /var/www
 
-# Expose port
-EXPOSE 9000
+# Copy nginx config
+COPY docker/default.conf /etc/nginx/sites-available/default
 
-CMD ["php-fpm"]
+# Copy supervisor config
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Expose port 80
+EXPOSE 80
+
+# Run both services
+CMD ["/usr/bin/supervisord"]
